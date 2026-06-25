@@ -1,0 +1,48 @@
+{
+  "n_candidates": 3,
+  "n_unique_targets": 3,
+  "class_counts": {
+    "PLANETARY_TRANSIT_CANDIDATE": 1,
+    "ECLIPSING_BINARY": 1,
+    "BLEND_OR_CONTAMINATED_SIGNAL": 1
+  },
+  "confidence_mean": 0.9272557505712968,
+  "top_candidates": [
+    {
+      "tic_id": 910001,
+      "sector": 1,
+      "candidate_id": 1,
+      "final_science_class": "PLANETARY_TRANSIT_CANDIDATE",
+      "final_science_confidence": 0.9866160096457273,
+      "period_days": 2.997951326959475,
+      "duration_hours": 1.7913070169384415,
+      "depth_ppm": 1498.742363374106,
+      "effective_snr": 102.26977767690049,
+      "recommended_action": "HIGH_PRIORITY_PLANET_CANDIDATE__VISUAL_REVIEW_AND_FOLLOWUP"
+    },
+    {
+      "tic_id": 920001,
+      "sector": 1,
+      "candidate_id": 1,
+      "final_science_class": "ECLIPSING_BINARY",
+      "final_science_confidence": 0.8526562792099354,
+      "period_days": 4.00320138888889,
+      "duration_hours": 2.3919543568464716,
+      "depth_ppm": 17952.11791134621,
+      "effective_snr": 584.1788645705676,
+      "recommended_action": "LIKELY_ECLIPSING_BINARY__VERIFY_PERIOD_ALIAS_AND_SECONDARY"
+    },
+    {
+      "tic_id": 930001,
+      "sector": 1,
+      "candidate_id": 1,
+      "final_science_class": "BLEND_OR_CONTAMINATED_SIGNAL",
+      "final_science_confidence": 0.9424949628582278,
+      "period_days": 3.501916754805909,
+      "duration_hours": 1.3949543919558796,
+      "depth_ppm": 1139.2252055105746,
+      "effective_snr": 54.55906696229184,
+      "recommended_action": "LIKELY_BLEND__INSPECT_CENTROIDS_TPF_AND_NEARBY_SOURCES"
+    }
+  ]
+}

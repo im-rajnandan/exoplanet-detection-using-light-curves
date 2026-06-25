@@ -1,0 +1,13 @@
+{
+  "n": 6,
+  "detection_rate": 0.8333333333333334,
+  "period_recovery_rate": 1.0,
+  "class_accuracy": 0.6666666666666666,
+  "per_class_detection_rate": {
+    "PLANETARY_TRANSIT_CANDIDATE": 0.8333333333333334
+  },
+  "median_period_or_alias_rel_error": 0.001399438457409427,
+  "median_period_rel_error_direct": 0.4999888430183946,
+  "median_depth_rel_error": 0.7724912667251829,
+  "median_duration_rel_error": 0.04396206997044083
+}

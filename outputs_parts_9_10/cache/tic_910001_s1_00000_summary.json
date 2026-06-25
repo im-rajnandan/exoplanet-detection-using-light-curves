@@ -1,0 +1,14 @@
+{
+  "target_key": "tic_910001_s1_00000",
+  "source": "raw_object",
+  "tic_id": 910001,
+  "sector": 1,
+  "status": "STRONG_DETECTION",
+  "clean_status": "OK",
+  "n_candidates": 1,
+  "best_snr": 102.26977767690049,
+  "best_confidence": 0.9866160096457273,
+  "n_clean_points": 19440,
+  "noise_ppm": 314.81208487203145,
+  "error": null
+}
