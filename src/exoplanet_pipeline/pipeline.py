@@ -16,6 +16,7 @@ def run_parts_1_to_5_from_clean(clean: CleanLightCurve, config: PipelineConfig |
     config = config or PipelineConfig()
     detection = detect_candidates(clean, config=config, use_variants=config.detection_use_variants)
     rows = []
+    fitted_candidates = []
     fit_results: list[TransitFitResult] = []
     vetting_results: list[VettingFeatures] = []
     class_results: list[ClassificationResult] = []
@@ -25,6 +26,7 @@ def run_parts_1_to_5_from_clean(clean: CleanLightCurve, config: PipelineConfig |
         fit = refine_candidate_parameters(clean, cand)
         vet = extract_vetting_features(clean, cand, fit)
         cls = classify_candidate_rule_based(cand, fit, vet)
+        fitted_candidates.append(cand)
         fit_results.append(fit)
         vetting_results.append(vet)
         class_results.append(cls)
@@ -38,6 +40,7 @@ def run_parts_1_to_5_from_clean(clean: CleanLightCurve, config: PipelineConfig |
     return {
         "clean": clean,
         "detection": detection,
+        "fitted_candidates": fitted_candidates,
         "fit_results": fit_results,
         "vetting_results": vetting_results,
         "classification_results": class_results,

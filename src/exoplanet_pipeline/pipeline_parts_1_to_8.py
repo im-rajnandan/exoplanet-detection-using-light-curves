@@ -17,9 +17,19 @@ def attach_ai_and_uncertainty(parts_1_to_5_result: dict, model_bundle: dict | No
     uncertainty_results = []
     uncertainty_rows = []
     clean = parts_1_to_5_result["clean"]
-    # Align by stored order: candidate -> fit/vet/class lists were created together.
+    fitted_candidates = parts_1_to_5_result.get("fitted_candidates")
+    if fitted_candidates is None:
+        # Backward-compatible fallback for older result dictionaries. New pipeline
+        # results include fitted_candidates explicitly because detection.candidates
+        # may contain non-fitted rows.
+        fitted_candidates = [
+            c
+            for c in parts_1_to_5_result["detection"].candidates
+            if c.status in ("STRONG_DETECTION", "WEAK_DETECTION")
+        ]
+
     for cand, fit, vet, cls in zip(
-        parts_1_to_5_result["detection"].candidates,
+        fitted_candidates,
         parts_1_to_5_result["fit_results"],
         parts_1_to_5_result["vetting_results"],
         parts_1_to_5_result["classification_results"],
@@ -31,10 +41,13 @@ def attach_ai_and_uncertainty(parts_1_to_5_result: dict, model_bundle: dict | No
                 ai_row = matches.iloc[0]
         unc = estimate_candidate_uncertainty(clean, cand, fit, vet, cls, ai_row=ai_row)
         uncertainty_results.append(unc)
-        uncertainty_rows.append({f"unc_{k}": v for k, v in unc.to_dict().items() if k not in ("tic_id", "sector", "candidate_id")})
+        uncertainty_rows.append({
+            "candidate_id": cand.candidate_id,
+            **{f"unc_{k}": v for k, v in unc.to_dict().items() if k not in ("tic_id", "sector", "candidate_id")},
+        })
     if uncertainty_rows and not catalog.empty:
         unc_df = pd.DataFrame(uncertainty_rows)
-        catalog = pd.concat([catalog.reset_index(drop=True), unc_df.reset_index(drop=True)], axis=1)
+        catalog = catalog.merge(unc_df, on="candidate_id", how="left", validate="one_to_one")
     parts_1_to_5_result = dict(parts_1_to_5_result)
     parts_1_to_5_result["catalog"] = catalog
     parts_1_to_5_result["uncertainty_results"] = uncertainty_results

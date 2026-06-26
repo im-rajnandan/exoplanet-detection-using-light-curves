@@ -2,7 +2,7 @@
 
 ## Audit scope
 
-This audit rechecked the entire package structure, code syntax, test suite, demo execution, generated outputs, and scientific design consistency for the TESS exoplanet detection/classification problem statement.
+This audit rechecked the package structure, code syntax, test suite, demo execution, generated-output workflow, and scientific design consistency for the TESS exoplanet detection/classification problem statement.
 
 ## What was checked
 
@@ -11,26 +11,30 @@ This audit rechecked the entire package structure, code syntax, test suite, demo
    - Scripts under `scripts/`.
    - Demo notebooks under `notebooks/`.
    - Tests under `tests/`.
-   - Design plans and report drafts present for Parts 1–10.
+   - Historical partial design plans, partial report drafts, generated demo outputs, and Python bytecode were removed from version control.
 
 2. **Syntax/import sanity**
-   - Ran `python -m compileall -q src scripts tests`.
+   - Ran `PYTHONPYCACHEPREFIX=.context/pycache .context/audit-venv/bin/python -m compileall -q src scripts tests`.
    - Result: passed.
 
 3. **Unit/integration tests**
    - Ran:
      ```bash
-     PYTHONPATH=src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests --tb=short --disable-warnings
+     PYTHONDONTWRITEBYTECODE=1 .context/audit-venv/bin/python -m pytest -q tests --tb=short --disable-warnings
      ```
-   - Result: `17 passed`.
+   - Result: `26 passed`.
 
-4. **Notebook integrity**
-   - All notebooks in `notebooks/` are valid JSON and contain cells.
+4. **Packaging sanity**
+   - Ran `uv pip check --python .context/audit-venv/bin/python`.
+   - Result: passed after moving runtime-optional TLS/wotan integrations out of mandatory dependencies.
 
-5. **Synthetic end-to-end demo**
+5. **Notebook integrity**
+   - All notebooks in `notebooks/` are valid JSON.
+
+6. **Synthetic end-to-end demo**
    - Ran:
      ```bash
-     PYTHONPATH=src python scripts/run_parts_9_10_synthetic_batch.py --output-dir /mnt/data/audit_run2 --n-periods 500
+     .context/audit-venv/bin/python scripts/run_parts_9_10_synthetic_batch.py --output-dir .context/audit_parts_9_10 --n-periods 500
      ```
    - Result: completed successfully.
    - Processed 3 synthetic targets and produced 3 final candidates.
@@ -39,22 +43,23 @@ This audit rechecked the entire package structure, code syntax, test suite, demo
      - eclipsing binary,
      - blend/contaminated signal.
 
-6. **Batch resume logic**
-   - Verified resume behavior on a zero-candidate/no-signal target.
-   - Fixed an issue where no-candidate targets were recomputed during resume because only targets with non-empty candidate CSVs were skipped.
-   - New behavior: if the summary cache exists, the target is skipped on resume even if it had no candidate catalog.
+7. **Repository hygiene**
+   - Removed tracked `__pycache__`/`.pyc` files.
+   - Removed tracked generated `outputs_*` artifacts; demos regenerate them as needed.
+   - Removed superseded partial design/report drafts while keeping the final report, README, audit note, tests, scripts, and notebooks.
+   - Removed legacy duplicate scripts covered by maintained Parts 1-5 commands.
+   - Added `.gitignore` rules for Python caches, egg-info, local virtualenvs, `.context`, and generated data/plot/output directories.
 
-7. **Script usability**
-   - Updated `scripts/run_parts_9_10_synthetic_batch.py` to accept:
-     - `--output-dir`,
-     - `--n-periods`,
-     - `--method`,
-     - `--resume`,
-     - `--make-plots`.
-
-8. **Documentation consistency**
-   - Updated `README.md` from Parts 1–6 wording to Parts 1–10 wording.
-   - Updated `TEST_STATUS.md` with the final verified test command.
+8. **Compatibility fixes from this audit**
+   - Clipped BLS duration grids so Astropy does not reject duration values longer than the shortest trial period.
+   - Added a transparent NumPy-box fallback when Astropy BLS fails at runtime.
+   - Replaced `DataFrame.to_markdown()` in final candidate review generation with a small dependency-free markdown table writer.
+   - Added final-catalog schema validation before writing submission catalogs.
+   - Aligned uncertainty rows by `candidate_id` instead of row order.
+   - Added CLI smoke tests and generated TESS-like FITS ingestion tests.
+   - Added `exoplanet_pipeline.__version__`.
+   - Made top-level package exports explicit instead of hiding import errors behind broad `try/except` blocks.
+   - Updated install/test docs for `python3 -m ...` and editable installs.
 
 ## Scientific/design checks
 
@@ -73,7 +78,7 @@ This audit rechecked the entire package structure, code syntax, test suite, demo
 
 ### Important limitations to keep honest
 
-- The fast default demo uses a small BLS grid for speed; real sector runs should use larger grids and/or TLS when runtime allows.
+- The fast default demo uses a small BLS grid for speed; real sector runs should use larger grids. TLS remains runtime-optional because the current `transitleastsquares` dependency stack is not reliable on modern Python.
 - The transit fitting is a robust box/profile refinement, not a full limb-darkened physical transit model.
 - Planet radius is only meaningful when reliable stellar radius metadata exists.
 - Crowded-field candidates still need stronger target-pixel-file difference imaging and Gaia nearby-source checks for high confidence.
@@ -82,7 +87,7 @@ This audit rechecked the entire package structure, code syntax, test suite, demo
 
 ## Final status
 
-The package is now a coherent, tested, submission-grade skeleton for the full problem statement. It is ready for:
+The package is now a smaller, coherent, tested, submission-grade skeleton for the full problem statement. It is ready for:
 
 1. running on the organizer's curated labeled dataset,
 2. running on local TESS FITS light curves,

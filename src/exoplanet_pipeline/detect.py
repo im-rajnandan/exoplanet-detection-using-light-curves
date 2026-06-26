@@ -219,6 +219,23 @@ def run_bls(clean: CleanLightCurve, config: PipelineConfig, flux: np.ndarray | N
 
     periods = build_period_grid(time, config)
     durations = build_duration_grid(config)
+    raw_n_durations = int(len(durations))
+    min_period = float(np.nanmin(periods)) if len(periods) else float("nan")
+    duration_grid_clipped = False
+    if np.isfinite(min_period):
+        valid_duration = np.isfinite(durations) & (durations > 0) & (durations < min_period)
+        duration_grid_clipped = bool(valid_duration.sum() != len(durations))
+        durations = durations[valid_duration]
+    if len(durations) == 0:
+        cand, diag = run_numpy_box(clean, config, flux=flux, detrend_variant=detrend_variant)
+        if cand is not None:
+            cand.warnings.append("BLS_DURATION_GRID_INVALID_USED_NUMPY_FALLBACK")
+        return cand, {
+            "status": "BLS_DURATION_GRID_INVALID_USED_NUMPY_FALLBACK",
+            "period_grid_min": min_period,
+            "raw_n_durations": raw_n_durations,
+            "fallback": diag,
+        }
     y_centered = y - np.nanmedian(y)
 
     try:
@@ -227,7 +244,10 @@ def run_bls(clean: CleanLightCurve, config: PipelineConfig, flux: np.ndarray | N
             py_warnings.simplefilter("ignore")
             res = bls.power(periods, durations)
     except Exception as exc:
-        return None, {"status": "BLS_FAILED", "error": repr(exc)}
+        cand, diag = run_numpy_box(clean, config, flux=flux, detrend_variant=detrend_variant)
+        if cand is not None:
+            cand.warnings.append("BLS_FAILED_USED_NUMPY_FALLBACK")
+        return cand, {"status": "BLS_FAILED_USED_NUMPY_FALLBACK", "error": repr(exc), "fallback": diag}
 
     if len(res.power) == 0 or not np.isfinite(res.power).any():
         return None, {"status": "NO_PERIOD_POWER"}
@@ -247,6 +267,8 @@ def run_bls(clean: CleanLightCurve, config: PipelineConfig, flux: np.ndarray | N
     status = _status_from_scores(float(depth_stats["snr"]), sde, n_tr, config)
 
     warnings_list = []
+    if duration_grid_clipped:
+        warnings_list.append("BLS_DURATION_GRID_CLIPPED")
     if n_tr < config.min_transits:
         warnings_list.append("TOO_FEW_TRANSITS")
     if depth_stats["depth_fraction"] <= 0:
@@ -280,6 +302,7 @@ def run_bls(clean: CleanLightCurve, config: PipelineConfig, flux: np.ndarray | N
             "period_grid_max": float(periods.max()),
             "n_periods": int(len(periods)),
             "n_durations": int(len(durations)),
+            "raw_n_durations": raw_n_durations,
         },
     )
     diag = {
@@ -287,6 +310,8 @@ def run_bls(clean: CleanLightCurve, config: PipelineConfig, flux: np.ndarray | N
         "periods": periods,
         "power": np.asarray(res.power),
         "durations": durations,
+        "raw_n_durations": raw_n_durations,
+        "duration_grid_clipped": duration_grid_clipped,
     }
     return candidate, diag
 

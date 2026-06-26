@@ -6,7 +6,43 @@ import textwrap
 import numpy as np
 import pandas as pd
 
-from .final_catalog import harmonize_candidate_catalog, summarize_final_catalog, PLANET_CLASS, EB_CLASS, BLEND_CLASS, UNCERTAIN_CLASS
+from .final_catalog import (
+    harmonize_candidate_catalog,
+    summarize_final_catalog,
+    validate_final_catalog_schema,
+    PLANET_CLASS,
+    EB_CLASS,
+    BLEND_CLASS,
+    UNCERTAIN_CLASS,
+)
+
+
+def _format_markdown_cell(value) -> str:
+    if pd.isna(value):
+        return ""
+    if isinstance(value, float):
+        text = f"{value:.6g}"
+    else:
+        text = str(value)
+    return text.replace("\n", "<br>").replace("|", "\\|")
+
+
+def _dataframe_to_markdown_table(df: pd.DataFrame) -> str:
+    """Small dependency-free markdown table writer.
+
+    pandas.DataFrame.to_markdown requires the optional tabulate package. The
+    submission writer should work from the declared core dependencies alone.
+    """
+    if df.empty:
+        return ""
+    columns = [str(c) for c in df.columns]
+    lines = [
+        "| " + " | ".join(columns) + " |",
+        "| " + " | ".join("---" for _ in columns) + " |",
+    ]
+    for _, row in df.iterrows():
+        lines.append("| " + " | ".join(_format_markdown_cell(row[c]) for c in df.columns) + " |")
+    return "\n".join(lines)
 
 
 def plot_final_class_distribution(catalog: pd.DataFrame, output_path: str | Path) -> None:
@@ -106,7 +142,7 @@ def write_final_candidate_review_markdown(catalog: pd.DataFrame, output_path: st
     lines.append("")
     cols = [c for c in ["science_priority_rank", "tic_id", "sector", "candidate_id", "final_science_class", "final_science_confidence", "period_days", "duration_hours", "depth_ppm", "effective_snr", "recommended_action"] if c in df]
     if cols and not df.empty:
-        lines.append(df.head(top_n)[cols].to_markdown(index=False))
+        lines.append(_dataframe_to_markdown_table(df.head(top_n)[cols]))
     else:
         lines.append("No candidate rows available.")
     lines.append("")
@@ -173,6 +209,9 @@ def generate_submission_package_outputs(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     final_catalog = harmonize_candidate_catalog(catalog)
+    issues = validate_final_catalog_schema(final_catalog)
+    if issues:
+        raise ValueError("Final catalog schema validation failed: " + "; ".join(issues))
     final_catalog_path = output_dir / "submission_final_candidate_catalog.csv"
     final_catalog.to_csv(final_catalog_path, index=False)
     visual_paths = make_final_visual_summary(final_catalog, output_dir)

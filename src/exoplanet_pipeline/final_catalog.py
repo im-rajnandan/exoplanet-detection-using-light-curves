@@ -13,6 +13,15 @@ BLEND_CLASS = "BLEND_OR_CONTAMINATED_SIGNAL"
 UNCERTAIN_CLASS = "UNCERTAIN_TRANSIT_LIKE_SIGNAL"
 NO_SIGNAL_CLASS = "NO_SIGNIFICANT_SIGNAL"
 SYSTEMATIC_CLASS = "INSTRUMENTAL_OR_LOW_QUALITY_SYSTEMATIC"
+KNOWN_FINAL_CLASSES = {
+    PLANET_CLASS,
+    EB_CLASS,
+    BLEND_CLASS,
+    UNCERTAIN_CLASS,
+    NO_SIGNAL_CLASS,
+    SYSTEMATIC_CLASS,
+    "STELLAR_VARIABILITY",
+}
 
 
 SCIENCE_COLUMN_ORDER = [
@@ -154,6 +163,74 @@ def harmonize_candidate_catalog(catalog: pd.DataFrame) -> pd.DataFrame:
     return out[front + rest]
 
 
+def validate_final_catalog_schema(catalog: pd.DataFrame, require_nonempty: bool = False) -> list[str]:
+    """Return human-readable schema issues for a harmonized final catalog.
+
+    Empty catalogs are allowed by default because no-detection batch runs should
+    still write valid output files. Set require_nonempty=True for submissions
+    that must contain at least one candidate.
+    """
+    issues: list[str] = []
+    if catalog is None:
+        return ["catalog is None"]
+    if catalog.empty:
+        return ["catalog is empty"] if require_nonempty else []
+
+    df = harmonize_candidate_catalog(catalog) if "final_science_class" not in catalog.columns else catalog.copy()
+    required = [
+        "tic_id",
+        "sector",
+        "candidate_id",
+        "science_priority_rank",
+        "science_priority_score",
+        "final_science_class",
+        "final_science_confidence",
+        "recommended_action",
+        "period_days",
+        "duration_hours",
+        "depth_ppm",
+        "effective_snr",
+    ]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        issues.append(f"missing required columns: {', '.join(missing)}")
+        return issues
+
+    classes = df["final_science_class"].fillna("").astype(str)
+    unknown_classes = sorted(set(classes) - KNOWN_FINAL_CLASSES)
+    if unknown_classes:
+        issues.append(f"unknown final_science_class values: {', '.join(unknown_classes)}")
+
+    numeric_checks = {
+        "final_science_confidence": (0.0, 1.0, True),
+        "period_days": (0.0, np.inf, False),
+        "duration_hours": (0.0, np.inf, False),
+        "depth_ppm": (0.0, np.inf, False),
+        "effective_snr": (0.0, np.inf, True),
+        "science_priority_rank": (0.0, np.inf, False),
+    }
+    for col, (lo, hi, allow_zero) in numeric_checks.items():
+        vals = pd.to_numeric(df[col], errors="coerce")
+        bad = vals.notna() & ~np.isfinite(vals)
+        if bad.any():
+            issues.append(f"{col} contains non-finite values")
+        finite = vals[np.isfinite(vals)]
+        if finite.empty:
+            issues.append(f"{col} has no finite values")
+            continue
+        lower_bad = finite < lo if allow_zero else finite <= lo
+        upper_bad = finite > hi
+        if lower_bad.any() or upper_bad.any():
+            bound = f"{'[' if allow_zero else '('}{lo}, {hi}]"
+            issues.append(f"{col} has values outside {bound}")
+
+    ranks = pd.to_numeric(df["science_priority_rank"], errors="coerce")
+    if ranks.notna().all() and sorted(ranks.astype(int).tolist()) != list(range(1, len(df) + 1)):
+        issues.append("science_priority_rank is not a contiguous 1-based ranking")
+
+    return issues
+
+
 def compute_science_priority(row: pd.Series) -> float:
     """Rank candidates for human review/follow-up, not as a proof of planet status."""
     cls = str(row.get("final_science_class", ""))
@@ -241,6 +318,9 @@ def save_final_catalog(catalog: pd.DataFrame, output_dir: str | Path, prefix: st
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     final = harmonize_candidate_catalog(catalog)
+    issues = validate_final_catalog_schema(final)
+    if issues:
+        raise ValueError("Final catalog schema validation failed: " + "; ".join(issues))
     paths = {
         "catalog_csv": output_dir / f"{prefix}_candidate_catalog.csv",
         "summary_json": output_dir / f"{prefix}_catalog_summary.json",

@@ -1,278 +1,105 @@
-# Exoplanet Pipeline — Best-grade Parts 1–10
+# Exoplanet Pipeline Parts 1-10
 
-This package implements a modular pipeline for the problem statement:
+Modular pipeline for AI-enabled detection and triage of exoplanet-like signals in noisy TESS light curves.
 
-> AI-enabled detection of exoplanets from noisy astronomical light curves.
-
-It now includes:
-
-```text
-Part 1: TESS ingestion, quality control, normalization, detrending, QC metrics
-Part 2: periodic dip detection with BLS/TLS-style candidate outputs
-Part 3: first-pass transit parameter refinement
-Part 4: scientific vetting feature extraction
-Part 5: transparent rule-based baseline classifier
-Part 6: supervised AI classifier using curated labeled candidate features
-Part 7: uncertainty estimation and final confidence scoring
-Part 8: validation framework and synthetic injection-recovery
-Part 9: sector-scale batch processing with resume/caching/failure logs
-Part 10: final candidate catalog, review assets, plots, and 3-page report draft
-```
-
-The philosophy is to use physics-informed preprocessing and feature extraction first, then train AI on candidate-level features rather than raw unverified light curves.
-
----
+The package keeps detection, physical vetting, AI classification, uncertainty, validation, and final catalog generation as separate stages. It outputs candidates for review; it does not astronomically validate planets by itself.
 
 ## Install
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
-pip install -r requirements.txt
+python3 -m pip install -e ".[dev,mast]"
 ```
 
----
-
-## Run Parts 1–5 synthetic demo
+For plain requirements-based environments:
 
 ```bash
-python scripts/run_parts_1_to_5_synthetic.py
+python3 -m pip install -e .
+python3 -m pip install -r requirements.txt
 ```
 
-This creates synthetic examples for:
-
-- planet-like transit
-- eclipsing binary
-- blended/off-target signal
-
-and writes diagnostic plots/catalogs to `outputs_parts_1_to_5/`.
-
----
-
-## Run Part 6 AI classifier demo
+To run the walkthrough notebooks, install the optional notebook extra:
 
 ```bash
-python scripts/run_part6_synthetic_ai_demo.py
+python3 -m pip install -e ".[notebook]"
 ```
 
-This generates a synthetic labeled feature catalog, trains the supervised classifier, evaluates it, saves the model, and writes:
+The maintained default path uses Astropy BLS detection and rolling-median detrending. `transitleastsquares` and `wotan` remain runtime-optional: if compatible versions are installed separately, `detection_method="tls"` and `detrend_method="wotan_biweight"` can use them.
 
-```text
-outputs_part6_ai/part6_synthetic_labeled_feature_catalog.csv
-outputs_part6_ai/part6_ai_classifier.joblib
-outputs_part6_ai/part6_ai_classifier_metrics.json
-outputs_part6_ai/part6_ai_classifier_feature_importance.csv
-outputs_part6_ai/part6_ai_classifier_MODEL_CARD.md
-outputs_part6_ai/part6_confusion_matrix.png
-outputs_part6_ai/part6_feature_importance.png
-outputs_part6_ai/part6_demo_predictions.csv
-outputs_part6_ai/part6_prediction_probabilities.png
-```
+## Main Commands
 
-Synthetic Part 6 data is only for code validation. For the real project, train on the organizer's curated labeled dataset.
-
----
-
-## Train on curated labeled dataset
-
-If the curated dataset has a column named `label`:
+Run the Parts 1-5 synthetic detection, fitting, vetting, and baseline-classification demo:
 
 ```bash
-python scripts/train_ai_classifier_from_catalog.py curated_labeled_catalog.csv --label-col label --output-dir outputs_part6_ai
+python3 scripts/run_parts_1_to_5_synthetic.py
 ```
 
-The label-normalization layer supports aliases such as:
-
-```text
-planet, confirmed_planet, exoplanet, eb, eclipsing_binary, blend,
-background_eb, starspot, variable, systematic, false_positive, noise, uncertain
-```
-
-Unknown labels are not silently guessed; clean them or add aliases in `ml.py`.
-
----
-
-## Predict on science candidates
+Run Parts 1-5 on one local TESS FITS light curve:
 
 ```bash
-python scripts/predict_ai_classifier_catalog.py \
-  outputs_part6_ai/part6_ai_classifier.joblib \
-  candidate_catalog.csv \
-  --output-csv outputs_part6_ai/science_predictions.csv
+python3 scripts/run_parts_1_to_5_fits.py path/to/lightcurve.fits --method bls
 ```
 
-Final predictions include:
+Train or demo the Part 6 AI classifier:
 
-```text
-ai_predicted_class
-ai_confidence
-ai_prob_<class>
-final_predicted_class
-final_confidence
-final_prob_<class>
-final_classifier_warnings
+```bash
+python3 scripts/run_part6_synthetic_ai_demo.py
+python3 scripts/train_ai_classifier_from_catalog.py curated_labeled_catalog.csv --label-col label --output-dir outputs_part6_ai
+python3 scripts/predict_ai_classifier_catalog.py outputs_part6_ai/part6_ai_classifier.joblib candidate_catalog.csv --output-csv outputs_part6_ai/science_predictions.csv
 ```
 
-The final probabilities blend AI with the Part 5 rule-based scientific scores and physical guardrails.
+Run uncertainty and validation utilities:
 
----
+```bash
+python3 scripts/run_parts_1_to_8_synthetic_single.py
+python3 scripts/run_parts_7_8_synthetic_validation.py
+python3 scripts/validate_candidate_catalog.py --catalog predictions.csv --label-col label --pred-col final_predicted_class --out-dir outputs_validation
+```
 
-## Project structure
+Run Parts 9-10 batch processing and final submission asset generation:
+
+```bash
+python3 scripts/run_parts_9_10_synthetic_batch.py --output-dir outputs_parts_9_10 --n-periods 500
+python3 scripts/run_parts_9_10_fits_directory.py /path/to/fits_dir --output-dir outputs_sector --max-targets 100
+python3 scripts/generate_final_submission_assets.py outputs_sector/batch_final_candidate_catalog.csv --output-dir submission_assets
+```
+
+Generated `outputs*`, `data`, and `plots` directories are intentionally gitignored. Re-run the scripts to recreate demo catalogs, plots, model artifacts, reports, and final submission files.
+
+## Package Layout
 
 ```text
 src/exoplanet_pipeline/
-  config.py
-  schema.py
-  ingest.py
-  quality.py
-  preprocess.py
-  detect.py
-  fit.py
-  vetting.py
-  classify.py
-  ml.py
-  ml_synthetic.py
-  ml_diagnostics.py
-  diagnostics.py
-  synthetic.py
-  pipeline.py
+  config.py                  central pipeline config
+  schema.py                  dataclasses for light curves, candidates, fits, vetting, classes
+  ingest.py                  local TESS FITS loading and optional MAST download helper
+  quality.py                 TESS quality-mask helpers
+  preprocess.py              flux selection, normalization, detrending, QC metrics
+  detect.py                  BLS/TLS/NumPy-box periodic dip detection
+  fit.py                     first-pass transit parameter refinement
+  vetting.py                 odd/even, secondary, centroid, crowding, and shape features
+  classify.py                transparent rule-based baseline classifier
+  ml.py, ml_synthetic.py     supervised classifier and synthetic feature data
+  uncertainty.py             uncertainty and final confidence estimates
+  validation.py              labeled-catalog and injection-recovery metrics
+  batch.py                   batch execution, resume cache, failure logs
+  final_catalog.py           harmonized final catalog and priority ranking
+  final_outputs.py           review tables, plots, summaries, report draft
 
-scripts/
-  run_synthetic_demo.py
-  run_parts_1_to_5_synthetic.py
-  run_part6_synthetic_ai_demo.py
-  train_ai_classifier_from_catalog.py
-  predict_ai_classifier_catalog.py
-
-tests/
-  test_preprocess.py
-  test_detection.py
-  test_fit_vetting_classify.py
-  test_ml_part6.py
-
-notebooks/
-  01_02_parts_1_2_demo.ipynb
-  03_05_parts_3_5_demo.ipynb
-  06_part_6_ai_classifier_demo.ipynb
+scripts/                      maintained command-line entry points
+tests/                        unit and integration tests
+notebooks/                    optional walkthrough notebooks
 ```
 
----
-
-## Why this is evaluator-friendly
-
-The pipeline directly targets the evaluation criteria:
-
-- **event detection:** BLS/TLS-style periodic dip detection;
-- **parameter accuracy:** period, epoch, duration, depth, SNR, event counts;
-- **classification accuracy:** curated-data supervised classifier;
-- **methodology:** physics-informed features plus AI;
-- **visualization:** preprocessing, detection, vetting, confusion-matrix, and feature-importance plots;
-- **uncertainty:** local SNR, robust depth uncertainty, probability calibration where possible, and guardrail warnings.
-
----
-
-## Important scientific caution
-
-This pipeline outputs candidate classifications and confidence levels. It does not by itself confirm planets. Crowded-field or high-value candidates still require stronger vetting such as target pixel file difference imaging, Gaia neighbor checks, or external catalog comparison.
-
-## Parts 7–8: uncertainty and validation
-
-This layer adds science-grade uncertainty estimates and validation reports.
-
-New capability:
-
-```text
-Part 7: uncertainty estimation and final confidence scoring
-Part 8: validation framework and synthetic injection-recovery
-```
-
-New files:
-
-```text
-src/exoplanet_pipeline/uncertainty.py
-src/exoplanet_pipeline/validation.py
-src/exoplanet_pipeline/validation_diagnostics.py
-src/exoplanet_pipeline/injection_recovery.py
-src/exoplanet_pipeline/pipeline_parts_1_to_8.py
-
-scripts/run_parts_1_to_8_synthetic_single.py
-scripts/run_parts_7_8_synthetic_validation.py
-scripts/validate_candidate_catalog.py
-
-tests/test_uncertainty_validation.py
-
-PARTS_7_8_UNCERTAINTY_VALIDATION_DESIGN_PLAN.md
-REPORT_DRAFT_PARTS_1_8.md
-```
-
-Run the compact synthetic validation demo:
+## Test
 
 ```bash
-PYTHONPATH=src python scripts/run_parts_7_8_synthetic_validation.py
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q tests --tb=short --disable-warnings
 ```
 
-Validate an organizer-provided labeled prediction catalog:
+Current audited status: `26 passed`.
 
-```bash
-PYTHONPATH=src python scripts/validate_candidate_catalog.py \
-  --catalog path/to/predictions.csv \
-  --label-col label \
-  --pred-col final_predicted_class \
-  --out-dir outputs_validation
-```
+## Scientific Limits
 
-The validation output includes detection metrics, classification metrics, parameter-recovery metrics, reliability/calibration metrics, and diagnostic plots.
-
-
-## Parts 9–10: Batch processing and final submission assets
-
-The project now includes the full final layer:
-
-```text
-Part 9  - sector-scale batch processing, resume/caching, target summaries, failure logs
-Part 10 - harmonized final candidate catalog, priority ranking, final plots, candidate-review markdown, and 3-page report draft
-```
-
-Run the synthetic sector-like demonstration:
-
-```bash
-python scripts/run_parts_9_10_synthetic_batch.py
-```
-
-Run on a directory of local TESS FITS light curves:
-
-```bash
-python scripts/run_parts_9_10_fits_directory.py /path/to/fits_dir --output-dir outputs_sector --max-targets 100
-```
-
-Generate final submission assets from any candidate catalog:
-
-```bash
-python scripts/generate_final_submission_assets.py outputs_sector/batch_final_candidate_catalog.csv --output-dir submission_assets
-```
-
-Important final outputs:
-
-```text
-batch_final_candidate_catalog.csv
-batch_target_summary.csv
-batch_failure_log.csv
-submission_assets/submission_final_candidate_catalog.csv
-submission_assets/submission_candidate_review.md
-submission_assets/submission_three_page_report_draft.md
-submission_assets/final_class_distribution.png
-submission_assets/final_confidence_distribution.png
-submission_assets/final_period_depth_priority.png
-```
-
-## Audit note
-
-The full test suite was re-run with plugin autoload disabled for a deterministic environment:
-
-```bash
-PYTHONPATH=src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests
-# 17 passed
-```
-
-The synthetic Parts 9–10 demo accepts `--output-dir`, `--n-periods`, `--method`, `--resume`, and `--make-plots`. Batch resume now also skips no-candidate and failed targets using the summary cache, not only targets with non-empty per-target candidate CSVs.
+The final confidence is a triage confidence, not a formal validation probability. High-value or crowded-field candidates still need target-pixel difference imaging, Gaia/nearby-source checks, and domain review before being treated as validated planets.
