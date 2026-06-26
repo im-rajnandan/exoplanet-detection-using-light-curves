@@ -6,7 +6,7 @@ import pandas as pd
 
 from .config import PipelineConfig
 from .schema import RawLightCurve
-from .pipeline_parts_1_to_8 import run_parts_1_to_8_from_raw, run_parts_1_to_8_from_fits
+from .pipeline_parts_1_to_8 import run_parts_1_to_8_from_raw
 from .batch import BatchRunConfig, run_raw_lightcurve_batch, run_fits_file_batch, discover_fits_files
 from .final_catalog import harmonize_candidate_catalog, summarize_final_catalog
 from .final_outputs import generate_submission_package_outputs

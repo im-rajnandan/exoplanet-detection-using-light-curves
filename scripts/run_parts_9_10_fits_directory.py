@@ -27,6 +27,8 @@ def main() -> None:
     if args.max_targets is not None:
         fits_files = fits_files[: args.max_targets]
     print(f"Found {len(fits_files)} FITS files")
+    if not fits_files:
+        parser.error(f"No FITS files found under {args.fits_dir!r}")
 
     output_dir = Path(args.output_dir)
     pipeline_config = PipelineConfig(n_periods=args.n_periods, detection_method=args.method, make_plots=False)

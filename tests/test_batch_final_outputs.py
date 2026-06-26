@@ -1,8 +1,8 @@
 from pathlib import Path
 import pandas as pd
 
-from exoplanet_pipeline.final_catalog import harmonize_candidate_catalog, summarize_final_catalog
-from exoplanet_pipeline.batch import BatchRunConfig, run_raw_lightcurve_batch
+from exoplanet_pipeline.final_catalog import harmonize_candidate_catalog, summarize_final_catalog, validate_final_catalog_schema
+from exoplanet_pipeline.batch import BatchRunConfig, run_raw_lightcurve_batch, run_fits_file_batch
 from exoplanet_pipeline.config import PipelineConfig
 from exoplanet_pipeline.synthetic import make_synthetic_transit_lc
 from exoplanet_pipeline.final_outputs import generate_submission_package_outputs
@@ -32,6 +32,31 @@ def test_harmonize_candidate_catalog_basic():
     assert abs(out.loc[0, "duration_hours"] - 2.4) < 1e-9
     assert out.loc[0, "science_priority_rank"] == 1
     assert "HIGH_PRIORITY" in out.loc[0, "recommended_action"]
+    assert validate_final_catalog_schema(out) == []
+
+
+def test_final_catalog_schema_validation_flags_bad_values():
+    df = pd.DataFrame([
+        {
+            "tic_id": 1,
+            "sector": 2,
+            "candidate_id": 0,
+            "final_predicted_class": "PLANETARY_TRANSIT_CANDIDATE",
+            "final_confidence": 0.82,
+            "fit_period_days": 3.1,
+            "fit_duration_days": 0.1,
+            "fit_depth_ppm": 900,
+            "fit_snr": 12,
+            "vet_data_quality_score": 0.9,
+        }
+    ])
+    final = harmonize_candidate_catalog(df)
+    bad = final.copy()
+    bad.loc[0, "final_science_class"] = "NOT_A_REAL_CLASS"
+    bad.loc[0, "period_days"] = -3.1
+    issues = validate_final_catalog_schema(bad)
+    assert any("unknown final_science_class" in issue for issue in issues)
+    assert any("period_days" in issue for issue in issues)
 
 
 def test_submission_assets_generation(tmp_path: Path):
@@ -64,6 +89,18 @@ def test_small_raw_batch_runs(tmp_path: Path):
     assert (tmp_path / "batch_final_candidate_catalog.csv").exists()
     assert (tmp_path / "batch_target_summary.csv").exists()
     assert (tmp_path / "batch_failure_log.csv").exists()
+
+
+def test_empty_fits_batch_writes_empty_outputs(tmp_path: Path):
+    cfg = PipelineConfig(n_periods=100, make_plots=False)
+    bcfg = BatchRunConfig(output_dir=tmp_path, cache_dir=tmp_path / "cache", resume=False, write_heartbeat_every=0)
+    result = run_fits_file_batch([], pipeline_config=cfg, batch_config=bcfg)
+    assert result["raw_candidate_catalog"].empty
+    assert result["final_candidate_catalog"].empty
+    assert result["target_summary"].empty
+    assert (tmp_path / "batch_raw_candidate_catalog.csv").exists()
+    assert (tmp_path / "batch_final_candidate_catalog.csv").exists()
+    assert (tmp_path / "batch_final_summary.json").exists()
 
 
 def test_batch_resume_skips_zero_candidate_targets(tmp_path: Path):

@@ -1,6 +1,6 @@
-"""Best-grade starter pipeline for TESS exoplanet light-curve preprocessing and periodic dip detection.
+"""Best-grade pipeline for TESS exoplanet light-curve detection and triage.
 
-This package currently implements Part 1 and Part 2 of the project:
+This package implements Parts 1-10 of the project:
     Part 1: ingestion, quality control, normalization, detrending, QC metrics
     Part 2: BLS/TLS candidate detection, SNR/depth estimation, diagnostics
     Part 3: first-pass transit parameter refinement and uncertainties
@@ -25,7 +25,10 @@ from .classify import classify_candidate_rule_based
 from .ml import train_ai_classifier, predict_ai_classifier, save_model_bundle, load_model_bundle
 from .pipeline import run_parts_1_to_5_from_raw, run_parts_1_to_5_from_clean, run_parts_1_to_5_from_fits
 
+__version__ = "1.0.0"
+
 __all__ = [
+    "__version__",
     "PipelineConfig",
     "RawLightCurve",
     "CleanLightCurve",
@@ -49,19 +52,35 @@ __all__ = [
     "run_parts_1_to_5_from_fits",
 ]
 
-# Parts 7–8 additions
-try:
-    from .uncertainty import UncertaintyResult, estimate_candidate_uncertainty, add_uncertainty_columns
-    from .validation import ValidationReport, validate_candidate_catalog
-except Exception:  # optional imports should not prevent basic package import
-    pass
+from .uncertainty import UncertaintyResult, estimate_candidate_uncertainty, add_uncertainty_columns
+from .validation import ValidationReport, validate_candidate_catalog
+from .batch import BatchRunConfig, run_raw_lightcurve_batch, run_fits_file_batch, discover_fits_files
+from .final_catalog import harmonize_candidate_catalog, summarize_final_catalog, save_final_catalog, validate_final_catalog_schema
+from .final_outputs import generate_submission_package_outputs, make_final_visual_summary, generate_three_page_report_markdown
+from .pipeline_parts_1_to_10 import (
+    run_single_target_parts_1_to_10_from_raw,
+    run_sector_like_batch_parts_1_to_10_from_raw,
+    run_sector_like_batch_parts_1_to_10_from_fits_dir,
+)
 
-
-# Parts 9–10 additions
-try:
-    from .batch import BatchRunConfig, run_raw_lightcurve_batch, run_fits_file_batch, discover_fits_files
-    from .final_catalog import harmonize_candidate_catalog, summarize_final_catalog, save_final_catalog
-    from .final_outputs import generate_submission_package_outputs, make_final_visual_summary, generate_three_page_report_markdown
-    from .pipeline_parts_1_to_10 import run_single_target_parts_1_to_10_from_raw, run_sector_like_batch_parts_1_to_10_from_raw
-except Exception:
-    pass
+__all__.extend([
+    "UncertaintyResult",
+    "estimate_candidate_uncertainty",
+    "add_uncertainty_columns",
+    "ValidationReport",
+    "validate_candidate_catalog",
+    "BatchRunConfig",
+    "run_raw_lightcurve_batch",
+    "run_fits_file_batch",
+    "discover_fits_files",
+    "harmonize_candidate_catalog",
+    "summarize_final_catalog",
+    "save_final_catalog",
+    "validate_final_catalog_schema",
+    "generate_submission_package_outputs",
+    "make_final_visual_summary",
+    "generate_three_page_report_markdown",
+    "run_single_target_parts_1_to_10_from_raw",
+    "run_sector_like_batch_parts_1_to_10_from_raw",
+    "run_sector_like_batch_parts_1_to_10_from_fits_dir",
+])

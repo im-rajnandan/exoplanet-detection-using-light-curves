@@ -4,6 +4,7 @@ import pandas as pd
 from exoplanet_pipeline.config import PipelineConfig
 from exoplanet_pipeline.synthetic import make_synthetic_transit_lc
 from exoplanet_pipeline.pipeline import run_parts_1_to_5_from_raw
+from exoplanet_pipeline.pipeline_parts_1_to_8 import attach_ai_and_uncertainty
 from exoplanet_pipeline.uncertainty import estimate_candidate_uncertainty, add_uncertainty_columns
 from exoplanet_pipeline.validation import validate_candidate_catalog
 from exoplanet_pipeline.injection_recovery import InjectionSpec, run_injection_recovery_grid, summarize_injection_recovery
@@ -26,6 +27,22 @@ def test_candidate_uncertainty_on_synthetic_planet():
     assert np.isfinite(unc.final_confidence)
     assert 0.0 <= unc.final_confidence <= 1.0
     assert unc.confidence_level in {"HIGH", "MEDIUM", "LOW", "VERY_LOW"}
+
+
+def test_uncertainty_columns_join_by_candidate_id_when_catalog_is_reordered():
+    raw = make_synthetic_transit_lc(period_days=3.0, depth_ppm=1500, noise_ppm=250, random_seed=321)
+    cfg = PipelineConfig(n_periods=500, n_durations=5, min_clean_points=300, detection_use_variants=True)
+    res = run_parts_1_to_5_from_raw(raw, config=cfg)
+    assert len(res["fitted_candidates"]) >= 2
+
+    res["catalog"] = res["catalog"].sort_values("candidate_id", ascending=False).reset_index(drop=True)
+    out = attach_ai_and_uncertainty(res)
+    fit_depth_by_candidate = {
+        fit.candidate_id: fit.depth_ppm
+        for fit in res["fit_results"]
+    }
+    for _, row in out["catalog"].iterrows():
+        assert np.isclose(row["unc_depth_ppm"], fit_depth_by_candidate[row["candidate_id"]])
 
 
 def test_catalog_uncertainty_columns():
