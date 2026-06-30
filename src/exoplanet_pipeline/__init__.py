@@ -23,6 +23,8 @@ from .fit import refine_candidate_parameters
 from .vetting import extract_vetting_features
 from .classify import classify_candidate_rule_based
 from .ml import train_ai_classifier, predict_ai_classifier, save_model_bundle, load_model_bundle
+from .cnn_views import build_cnn_candidate_views, CNNCandidateViews
+from .cnn import train_cnn_classifier, predict_cnn_candidate_views, save_cnn_bundle, load_cnn_bundle
 from .pipeline import run_parts_1_to_5_from_raw, run_parts_1_to_5_from_clean, run_parts_1_to_5_from_fits
 
 __version__ = "1.0.0"
@@ -47,6 +49,12 @@ __all__ = [
     "predict_ai_classifier",
     "save_model_bundle",
     "load_model_bundle",
+    "build_cnn_candidate_views",
+    "CNNCandidateViews",
+    "train_cnn_classifier",
+    "predict_cnn_candidate_views",
+    "save_cnn_bundle",
+    "load_cnn_bundle",
     "run_parts_1_to_5_from_raw",
     "run_parts_1_to_5_from_clean",
     "run_parts_1_to_5_from_fits",

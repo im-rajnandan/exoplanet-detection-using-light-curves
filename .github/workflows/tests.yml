@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  base:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,3 +37,29 @@ jobs:
           MPLBACKEND: Agg
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m pytest
+
+  deep-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package with deep extra
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,deep]"
+
+      - name: Check installed dependencies
+        run: python -m pip check
+
+      - name: Run CNN deep smoke tests
+        env:
+          MPLBACKEND: Agg
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest tests/test_cnn_deep.py

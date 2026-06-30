@@ -23,6 +23,9 @@ mast = [
 dev = [
     "pytest>=8.0",
 ]
+deep = [
+    "torch>=2.2",
+]
 notebook = [
     "jupyter>=1.0",
 ]

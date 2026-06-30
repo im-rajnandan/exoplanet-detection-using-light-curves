@@ -130,6 +130,7 @@ def _safe_max(df: Any, cols: list[str]) -> float | None:
 def run_raw_lightcurve_batch(
     raw_lightcurves: Iterable[RawLightCurve],
     model_bundle: dict | None = None,
+    cnn_bundle: dict | None = None,
     pipeline_config: PipelineConfig | None = None,
     batch_config: BatchRunConfig | None = None,
 ) -> dict[str, Any]:
@@ -169,7 +170,7 @@ def run_raw_lightcurve_batch(
                 target_rows.append(json.load(f))
             continue
         try:
-            result = run_parts_1_to_8_from_raw(raw, model_bundle=model_bundle, config=pipeline_config)
+            result = run_parts_1_to_8_from_raw(raw, model_bundle=model_bundle, cnn_bundle=cnn_bundle, config=pipeline_config)
             df = _result_to_rows(result)
             if not df.empty:
                 df.insert(0, "target_key", key)
@@ -198,6 +199,7 @@ def run_raw_lightcurve_batch(
 def run_fits_file_batch(
     fits_files: Iterable[str | Path],
     model_bundle: dict | None = None,
+    cnn_bundle: dict | None = None,
     pipeline_config: PipelineConfig | None = None,
     batch_config: BatchRunConfig | None = None,
 ) -> dict[str, Any]:
@@ -237,7 +239,7 @@ def run_fits_file_batch(
                 target_rows.append(json.load(f))
             continue
         try:
-            result = run_parts_1_to_8_from_fits(str(path), model_bundle=model_bundle, config=pipeline_config)
+            result = run_parts_1_to_8_from_fits(str(path), model_bundle=model_bundle, cnn_bundle=cnn_bundle, config=pipeline_config)
             df = _result_to_rows(result)
             if not df.empty:
                 df.insert(0, "target_key", key)
