@@ -132,8 +132,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q tests --tb=short --disable-warnin
 Current audited status:
 
 ```text
-base without PyTorch: 37 passed, 1 skipped
-with .[dev,deep]: 40 passed
+base without PyTorch: 44 passed
+deep smoke: 3 passed
 ```
 
 ## Scientific Limits
