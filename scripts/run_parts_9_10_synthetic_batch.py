@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from exoplanet_pipeline.config import PipelineConfig
 from exoplanet_pipeline.batch import BatchRunConfig, run_raw_lightcurve_batch
+from exoplanet_pipeline.cnn import load_cnn_bundle
 from exoplanet_pipeline.synthetic import make_synthetic_transit_lc, make_synthetic_eb_lc, make_synthetic_blend_lc
 from exoplanet_pipeline.final_outputs import generate_submission_package_outputs
 
@@ -21,6 +22,7 @@ def main() -> None:
     parser.add_argument("--method", choices=["bls", "tls", "both"], default="bls")
     parser.add_argument("--resume", action="store_true", help="Resume from cached per-target outputs when available")
     parser.add_argument("--make-plots", action="store_true", help="Enable per-candidate plots; off by default for speed")
+    parser.add_argument("--cnn-model", type=str, default=None, help="Optional CNN bundle directory or cnn_model.pt path")
     args = parser.parse_args()
 
     out = Path(args.output_dir)
@@ -38,7 +40,8 @@ def main() -> None:
         detection_use_variants=False,
     )
     batch_config = BatchRunConfig(output_dir=out, cache_dir=out / "cache", resume=args.resume, write_heartbeat_every=3)
-    result = run_raw_lightcurve_batch(raws, pipeline_config=pipeline_config, batch_config=batch_config)
+    cnn_bundle = load_cnn_bundle(args.cnn_model) if args.cnn_model else None
+    result = run_raw_lightcurve_batch(raws, cnn_bundle=cnn_bundle, pipeline_config=pipeline_config, batch_config=batch_config)
     paths = generate_submission_package_outputs(result["final_candidate_catalog"], out / "submission_assets")
     print("Parts 9–10 synthetic batch complete.")
     print(f"Targets processed: {len(result['target_summary'])}")

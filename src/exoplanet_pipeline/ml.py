@@ -604,6 +604,7 @@ def _apply_physical_guardrails(probs: dict[str, float], row: pd.Series) -> tuple
     secondary_ratio = _safe_float(row.get("vet_secondary_to_primary_ratio"))
     odd_even_sigma = _safe_float(row.get("vet_odd_even_sigma"))
     centroid_sigma = _safe_float(row.get("vet_centroid_shift_sigma"))
+    crowdsap = _safe_float(row.get("vet_crowdsap"))
     crowding_risk = _safe_float(row.get("vet_crowding_risk"))
     data_quality = _safe_float(row.get("vet_data_quality_score"))
     snr = _safe_float(row.get("fit_snr", row.get("snr")))
@@ -612,6 +613,10 @@ def _apply_physical_guardrails(probs: dict[str, float], row: pd.Series) -> tuple
         p["ECLIPSING_BINARY"] = max(p.get("ECLIPSING_BINARY", 0.0), 0.82)
         p["PLANETARY_TRANSIT_CANDIDATE"] = min(p.get("PLANETARY_TRANSIT_CANDIDATE", 0.0), 0.18)
         warnings_here.append("guardrail_strong_secondary_eclipse")
+    elif secondary_sigma >= 5.0:
+        p["ECLIPSING_BINARY"] = max(p.get("ECLIPSING_BINARY", 0.0), 0.60)
+        p["PLANETARY_TRANSIT_CANDIDATE"] = min(p.get("PLANETARY_TRANSIT_CANDIDATE", 0.0), 0.35)
+        warnings_here.append("guardrail_possible_secondary_eclipse")
     if odd_even_sigma >= 3.0:
         p["ECLIPSING_BINARY"] = max(p.get("ECLIPSING_BINARY", 0.0), 0.72)
         p["PLANETARY_TRANSIT_CANDIDATE"] = min(p.get("PLANETARY_TRANSIT_CANDIDATE", 0.0), 0.25)
@@ -623,6 +628,10 @@ def _apply_physical_guardrails(probs: dict[str, float], row: pd.Series) -> tuple
     elif centroid_sigma >= 3.0 and crowding_risk >= 0.25:
         p["BLEND_OR_CONTAMINATED_SIGNAL"] = max(p.get("BLEND_OR_CONTAMINATED_SIGNAL", 0.0), 0.65)
         warnings_here.append("guardrail_marginal_centroid_plus_crowding")
+    if (np.isfinite(crowdsap) and crowdsap <= 0.60) or crowding_risk >= 0.40:
+        p["BLEND_OR_CONTAMINATED_SIGNAL"] = max(p.get("BLEND_OR_CONTAMINATED_SIGNAL", 0.0), 0.62)
+        p["PLANETARY_TRANSIT_CANDIDATE"] = min(p.get("PLANETARY_TRANSIT_CANDIDATE", 0.0), 0.38)
+        warnings_here.append("guardrail_low_crowdsap_or_high_crowding")
     if data_quality <= 0.35:
         p["INSTRUMENTAL_OR_LOW_QUALITY_SYSTEMATIC"] = max(p.get("INSTRUMENTAL_OR_LOW_QUALITY_SYSTEMATIC", 0.0), 0.70)
         p["PLANETARY_TRANSIT_CANDIDATE"] = min(p.get("PLANETARY_TRANSIT_CANDIDATE", 0.0), 0.22)
