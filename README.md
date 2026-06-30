@@ -98,7 +98,7 @@ notebooks/                    optional walkthrough notebooks
 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q tests --tb=short --disable-warnings
 ```
 
-Current audited status: `26 passed`.
+Current audited status: `31 passed`.
 
 ## Scientific Limits
 

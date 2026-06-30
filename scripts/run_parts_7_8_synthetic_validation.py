@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from exoplanet_pipeline.config import PipelineConfig
-from exoplanet_pipeline.injection_recovery import run_injection_recovery_grid, summarize_injection_recovery, default_injection_grid
+from exoplanet_pipeline.injection_recovery import run_injection_recovery_grid, summarize_injection_recovery, compact_injection_demo_grid
 from exoplanet_pipeline.validation import validate_candidate_catalog, validation_report_to_markdown
 from exoplanet_pipeline.validation_diagnostics import (
     plot_confusion_matrix_from_report,
@@ -33,8 +33,8 @@ def main() -> None:
         detection_use_variants=False,
         make_plots=False,
     )
-    # Use a compact grid for a fast demo. Increase this in the final run.
-    specs = default_injection_grid(random_seed=42)[:6]
+    # Use a compact class-balanced grid for a fast demo. Increase this in the final run.
+    specs = compact_injection_demo_grid(random_seed=42, n_per_class=2)
     catalog = run_injection_recovery_grid(specs=specs, config=config, n_bootstrap=50)
     catalog.to_csv(out_dir / "parts_7_8_injection_recovery_catalog.csv", index=False)
 
