@@ -71,7 +71,19 @@ def rolling_median_trend(time: np.ndarray, flux: np.ndarray, window_days: float)
     return trend
 
 
-def detrend_flux(time: np.ndarray, flux_norm: np.ndarray, config: PipelineConfig, window_days: float | None = None):
+def _append_unique_warning(warnings: list[str] | None, warning: str) -> None:
+    if warnings is not None and warning not in warnings:
+        warnings.append(warning)
+
+
+def detrend_flux(
+    time: np.ndarray,
+    flux_norm: np.ndarray,
+    config: PipelineConfig,
+    window_days: float | None = None,
+    warnings: list[str] | None = None,
+    warning_context: str = "default",
+):
     window = config.detrend_window_days if window_days is None else float(window_days)
     if config.detrend_method == "none":
         trend = np.ones_like(flux_norm)
@@ -89,9 +101,11 @@ def detrend_flux(time: np.ndarray, flux_norm: np.ndarray, config: PipelineConfig
                 break_tolerance=0.5,
             )
             return np.asarray(flat, dtype=float), np.asarray(trend, dtype=float)
-        except Exception:
-            # Fall through to rolling median rather than fail preprocessing.
-            pass
+        except Exception as exc:
+            _append_unique_warning(
+                warnings,
+                f"WOTAN_BIWEIGHT_FAILED_USED_ROLLING_MEDIAN[{warning_context}]:{type(exc).__name__}",
+            )
 
     trend = rolling_median_trend(time, flux_norm, window)
     trend = np.where(np.isfinite(trend) & (trend > 0), trend, np.nanmedian(trend[np.isfinite(trend)]))
@@ -203,12 +217,19 @@ def preprocess_raw_lightcurve(raw: RawLightCurve, config: PipelineConfig | None 
     if removed_fraction > config.max_removed_fraction:
         warnings.append("HIGH_REMOVED_FRACTION")
 
-    flux_detrended, trend = detrend_flux(time_c, flux_norm_c, config)
+    flux_detrended, trend = detrend_flux(time_c, flux_norm_c, config, warnings=warnings, warning_context="default")
 
     variants = {}
     for w in config.detrend_variants_days:
         try:
-            variant_flat, _ = detrend_flux(time_c, flux_norm_c, config, window_days=w)
+            variant_flat, _ = detrend_flux(
+                time_c,
+                flux_norm_c,
+                config,
+                window_days=w,
+                warnings=warnings,
+                warning_context=f"{w:.2f}d",
+            )
             variants[f"{w:.2f}d"] = variant_flat
         except Exception as exc:
             warnings.append(f"DETREND_VARIANT_{w}_FAILED:{exc!r}")

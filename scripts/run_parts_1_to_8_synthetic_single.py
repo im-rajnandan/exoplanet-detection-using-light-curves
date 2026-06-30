@@ -19,7 +19,7 @@ def main() -> None:
     result["catalog"].to_csv(out_dir / "parts_1_to_8_single_catalog.csv", index=False)
     plot_preprocessing(result["clean"], out_dir / "single_preprocessing.png")
     if result["detection"].best_candidate is not None:
-        plot_detection(result["clean"], result["detection"].best_candidate, out_dir / "single_detection.png")
+        plot_detection(result["clean"], result["detection"], out_dir / "single_detection.png")
     print(result["catalog"].T)
     print("Wrote", out_dir)
 

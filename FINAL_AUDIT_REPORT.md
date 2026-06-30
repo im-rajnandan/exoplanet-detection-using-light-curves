@@ -20,12 +20,12 @@ This audit rechecked the package structure, code syntax, test suite, demo execut
 3. **Unit/integration tests**
    - Ran:
      ```bash
-     PYTHONDONTWRITEBYTECODE=1 .context/audit-venv/bin/python -m pytest -q tests --tb=short --disable-warnings
+     PYTHONDONTWRITEBYTECODE=1 .context/audit-venv/bin/python -m pytest --disable-warnings
      ```
-   - Result: `26 passed`.
+   - Result: `31 passed`.
 
 4. **Packaging sanity**
-   - Ran `uv pip check --python .context/audit-venv/bin/python`.
+   - Ran `.context/audit-venv/bin/python -m pip check`.
    - Result: passed after moving runtime-optional TLS/wotan integrations out of mandatory dependencies.
 
 5. **Notebook integrity**
@@ -56,7 +56,12 @@ This audit rechecked the package structure, code syntax, test suite, demo execut
    - Replaced `DataFrame.to_markdown()` in final candidate review generation with a small dependency-free markdown table writer.
    - Added final-catalog schema validation before writing submission catalogs.
    - Aligned uncertainty rows by `candidate_id` instead of row order.
-   - Added CLI smoke tests and generated TESS-like FITS ingestion tests.
+   - Fixed the Parts 1-8 single-target demo plotting call.
+   - Added executable CLI/demo smoke tests and generated TESS-like FITS ingestion tests.
+   - Made the compact Parts 7-8 validation demo class-balanced.
+   - Aligned injection-recovery uncertainty estimates to the selected `candidate_id`.
+   - Reported optional `wotan` detrending fallbacks in preprocessing warnings.
+   - Added a GitHub Actions test workflow for Python 3.10 and 3.12.
    - Added `exoplanet_pipeline.__version__`.
    - Made top-level package exports explicit instead of hiding import errors behind broad `try/except` blocks.
    - Updated install/test docs for `python3 -m ...` and editable installs.

@@ -71,6 +71,20 @@ def default_injection_grid(random_seed: int = 42) -> list[InjectionSpec]:
     return specs
 
 
+def compact_injection_demo_grid(random_seed: int = 42, n_per_class: int = 2) -> list[InjectionSpec]:
+    """Return a fast, class-balanced subset of the default injection grid."""
+    specs = default_injection_grid(random_seed=random_seed)
+    labels = [
+        "PLANETARY_TRANSIT_CANDIDATE",
+        "ECLIPSING_BINARY",
+        "BLEND_OR_CONTAMINATED_SIGNAL",
+    ]
+    selected: list[InjectionSpec] = []
+    for label in labels:
+        selected.extend([spec for spec in specs if spec.label == label][:n_per_class])
+    return selected
+
+
 def raw_from_injection(spec: InjectionSpec):
     if spec.label == "ECLIPSING_BINARY":
         return make_synthetic_eb_lc(
@@ -129,11 +143,17 @@ def run_single_injection(spec: InjectionSpec, config: PipelineConfig | None = No
     score_col = "fit_snr" if "fit_snr" in catalog.columns else "local_snr"
     idx = pd.to_numeric(catalog[score_col], errors="coerce").fillna(-np.inf).idxmax()
     row = catalog.loc[idx].to_dict()
-    # Estimate uncertainty for the matching in-memory objects.
-    fit = result["fit_results"][0]
-    vet = result["vetting_results"][0]
-    cls = result["classification_results"][0]
-    cand = result["detection"].candidates[0]
+    selected_candidate_id = int(row.get("candidate_id", 1))
+    candidates = result.get("fitted_candidates") or result["detection"].candidates
+    candidate_by_id = {int(c.candidate_id): c for c in candidates}
+    fit_by_id = {int(f.candidate_id): f for f in result["fit_results"]}
+    vet_by_id = {int(v.candidate_id): v for v in result["vetting_results"]}
+    cls_by_id = {int(c.candidate_id): c for c in result["classification_results"]}
+    # Estimate uncertainty for the same candidate row selected for validation.
+    cand = candidate_by_id.get(selected_candidate_id, candidates[0])
+    fit = fit_by_id.get(selected_candidate_id, result["fit_results"][0])
+    vet = vet_by_id.get(selected_candidate_id, result["vetting_results"][0])
+    cls = cls_by_id.get(selected_candidate_id, result["classification_results"][0])
     unc = estimate_candidate_uncertainty(result["clean"], cand, fit, vet, cls, n_bootstrap=n_bootstrap, random_seed=spec.random_seed)
     # Determine recovery tolerance. Use period alias tolerance too because EBs often appear at P/2.
     p_pred = float(row.get("fit_period_days", row.get("period_days", np.nan)))
